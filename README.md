@@ -42,6 +42,16 @@ Bounding-box coordinates and dimensions are normalised between 0 and 1.
 
 The dataset is not included in this repository. Users must supply an appropriately structured dataset and update the dataset configuration path before training or evaluation.
 
+## Dataset Access
+
+The dataset used in this project consists of images of packaged pork products annotated with YOLO-format bounding boxes across five defect categories.
+
+## Dataset source: [Download the original dataset](https://universe.roboflow.com/hello-2aqe0/pork-rasher-error-packaging)
+
+The dataset is not included directly in this GitHub repository due to its size. Users wishing to reproduce the training and evaluation procedures must download the dataset from the source linked above.
+
+Following download, the dataset should be extracted and organised into the appropriate training, validation and testing directories, with the corresponding paths specified in the data.yaml configuration file.
+
 ## Model and Optimisation
 
 The computational implementation uses the Ultralytics YOLOv8n object detection architecture.
