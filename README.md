@@ -114,6 +114,8 @@ These results are hardware- and benchmark-dependent and should not be interprete
 MMA3001-Pork-Packaging-Defect-Detection/
 ├── notebooks/
 │   └── GITHUB (1).ipynb
+├── models/
+│   └── best.pt
 ├── src/
 │   ├── __init__.py
 │   ├── train.py
@@ -150,98 +152,245 @@ python -m pip install -r requirements.txt
 
 The dataset and trained model checkpoint are not bundled with the repository.
 
-## Quick Start — Running the Code
+## Running the Trained Model in Google Colab
 
-The following instructions describe how to download, install and execute the computational implementation.
+The following instructions provide a complete workflow for running the trained YOLOv8 object detection model in Google Colab. The repository includes the final trained model weights (models/best.pt), allowing users to perform object detection and evaluate model performance using the publicly available Roboflow dataset without retraining the model or accessing the developer's Google Drive.
 
-### Step 1: Download the repository
 
-Clone the GitHub repository using:
+### Step 1 — Open Google Colab
 
-```bash
-git clone https://github.com/ibig0002-ops/MMA3001-Pork-Packaging-Defect-Detection.git
+1. Open [Google Colab](https://colab.research.google.com/).
+2. Select **New notebook**.
+3. Select **Runtime → Change runtime type → CPU**.
+
+CPU execution is sufficient for testing the trained model on individual images. A GPU may be selected for faster processing.
+
+### Step 2 — Clone the GitHub repository
+
+Run the following code in a new Colab cell:
+
+```python
+!git clone https://github.com/ibig0002-ops/MMA3001-Pork-Packaging-Defect-Detection.git
+%cd /content/MMA3001-Pork-Packaging-Defect-Detection
 ```
 
-Navigate to the project directory:
+This downloads the repository, including the Python source code and trained model weights (`models/best.pt`).
 
-```bash
-cd MMA3001-Pork-Packaging-Defect-Detection
+Verify that the weights are available:
+
+```python
+from pathlib import Path
+
+assert Path("models/best.pt").is_file(), "Model weights not found!"
+print("Trained model weights found.")
 ```
 
-Alternatively, download the repository as a ZIP file from GitHub, extract its contents and open a terminal within the extracted project directory.
+### Step 3 — Install dependencies
 
-### Step 2: Install dependencies
-
-Ensure Python is installed, then install the required packages:
-
-```bash
-python -m pip install -r requirements.txt
+```python
+!pip install -r requirements.txt
 ```
 
-### Step 3: Verify the installation
+This installs the Python packages required to execute the object detection model.
 
-Run the automated test suite:
+### Step 4 — Download and upload the dataset
 
-```bash
-python -m pytest -q
+The model was developed using the publicly available **Pork Rasher Error-Packaging** dataset hosted on Roboflow.
+
+Dataset: [Pork Rasher Error-Packaging — Roboflow Universe](https://universe.roboflow.com/hello-2aqe0/pork-rasher-error-packaging)
+
+1. Open the dataset link above.
+2. Select the dataset version used for this project.
+3. Download the dataset in **YOLOv8 format** as a ZIP file.
+4. Return to Google Colab.
+5. Open the **Files** sidebar using the folder icon.
+6. Upload the downloaded ZIP file to `/content/`.
+7. Wait until the upload is fully complete before proceeding.
+
+The dataset does not need to be uploaded to GitHub.
+
+### Step 5 — Extract the dataset
+
+Run the following code:
+
+```python
+from pathlib import Path
+import zipfile
+
+zip_files = list(Path("/content").glob("*.zip"))
+
+assert len(zip_files) == 1, (
+    "Expected exactly one dataset ZIP file in /content"
+)
+
+zip_path = zip_files[0]
+assert zipfile.is_zipfile(zip_path), (
+    "Invalid ZIP file. Check that the upload is complete."
+)
+
+dataset_dir = Path("/content/pork_dataset")
+
+with zipfile.ZipFile(zip_path) as archive:
+    archive.extractall(dataset_dir)
+
+print("Dataset extracted successfully!")
 ```
 
-Pytest will report the number of tests passed or failed. Successful completion provides evidence that the tested software components function correctly.
+The extraction may create an additional folder inside `pork_dataset`, depending on how the dataset ZIP was generated.
 
-### Step 4: Prepare the required inputs
+### Step 6 — Locate a test image
 
-Model training and evaluation require a dataset containing images and YOLO-format annotations, with the appropriate configuration specified in `data.yaml`.
+The following code automatically locates the test images, including when the dataset is stored inside an additional folder. It excludes hidden macOS metadata files that cannot be processed as images.
 
-Prediction and benchmarking require a trained YOLOv8 model checkpoint (`best.pt`).
+```python
+from pathlib import Path
 
-The original dataset and trained checkpoint are not distributed with this repository. Users must supply the required inputs and update the corresponding file paths.
+dataset_root = Path("/content/pork_dataset")
 
-### Step 5: Execute the model
+test_dirs = [
+    p for p in dataset_root.rglob("images")
+    if p.parent.name == "test"
+    and "__MACOSX" not in p.parts
+]
 
-**Object detection:**
+assert test_dirs, "No valid test image directory found!"
 
-```bash
-python -m src.predict --weights path/to/best.pt --image path/to/image.jpg
+test_dir = test_dirs[0]
+
+test_images = sorted([
+    p for p in test_dir.iterdir()
+    if p.is_file()
+    and p.suffix.lower() in [".jpg", ".jpeg", ".png"]
+    and not p.name.startswith(".")
+])
+
+assert test_images, "No valid test images found!"
+
+test_image = str(test_images[0])
+
+print("Selected test image:", test_image)
 ```
 
-**Model evaluation:**
+### Step 7 — Run object detection
 
-```bash
-python -m src.evaluate --weights path/to/best.pt --data path/to/data.yaml --split test --imgsz 800
+Execute the repository's prediction script using the trained model weights:
+
+```python
+!python -m src.predict \
+    --weights models/best.pt \
+    --image "{test_image}"
 ```
 
-**Model training:**
+The script loads the trained YOLOv8 model and performs object detection on the selected image.
 
-```bash
-python -m src.train --data path/to/data.yaml --output runs
+Predictions are returned with the following information:
+
+- `class_id`: Numerical identifier of the detected defect.
+- `class_name`: Predicted packaging defect category.
+- `confidence`: Confidence score associated with the detection.
+- `xyxy_pixels`: Bounding-box coordinates in pixels, represented as `[x_min, y_min, x_max, y_max]`.
+
+For example, the output may resemble:
+
+```text
+{
+    'class_id': 3,
+    'class_name': 'unsealed',
+    'confidence': 0.8026,
+    'xyxy_pixels': [0.96, 355.23, 335.91, 540.0]
+}
 ```
 
-**Inference benchmarking:**
+The exact predictions depend on the selected image.
 
-```bash
-python -m src.benchmark --weights path/to/best.pt --images-dir path/to/test/images
+### Step 8 — Configure the dataset for evaluation
+
+Locate the Roboflow dataset configuration file:
+
+```python
+from pathlib import Path
+
+yaml_files = [
+    p for p in Path("/content/pork_dataset").rglob("data.yaml")
+    if "__MACOSX" not in p.parts
+]
+
+assert len(yaml_files) == 1, (
+    "Expected exactly one dataset configuration file"
+)
+
+dataset_yaml = yaml_files[0]
+print("Dataset configuration:", dataset_yaml)
 ```
 
-Replace the example file paths with the locations of the corresponding files on your computer.
+Update the dataset paths to reference the extracted folders:
 
-### Step 6: Review the results
+```python
+import yaml
 
-Inspect the outputs generated by the relevant Python module. The original Google Colab notebook in the `notebooks/` directory provides additional context regarding the experimental workflow, optimisation procedures and performance evaluation.
+with open(dataset_yaml) as f:
+    config = yaml.safe_load(f)
 
-The commands above describe the intended execution procedure. Successful execution depends on the availability of the required inputs, compatible dependencies and computational resources.
+dataset_folder = dataset_yaml.parent.resolve()
+
+config["path"] = str(dataset_folder)
+config["train"] = "train/images"
+config["val"] = "valid/images"
+config["test"] = "test/images"
+
+for split in ["train", "valid", "test"]:
+    assert (dataset_folder / split / "images").is_dir(), (
+        f"Missing {split} image directory"
+    )
+
+with open(dataset_yaml, "w") as f:
+    yaml.safe_dump(config, f, sort_keys=False)
+
+print("Dataset configuration updated.")
 ```
 
-## Automated Testing
+This step ensures that the evaluation script can locate the training, validation and testing datasets regardless of the extraction location.
 
-Automated tests are implemented using `pytest`.
+### Step 9 — Evaluate model performance
 
-Run the tests from the repository's root directory:
+Run the repository's evaluation script on the test dataset:
 
-```bash
-python -m pytest -q
+```python
+!python -m src.evaluate \
+    --weights models/best.pt \
+    --data "{dataset_yaml}" \
+    --split test \
+    --imgsz 800
 ```
 
-The tests examine selected aspects of the Python implementation and output handling. They do not independently verify the accuracy of the trained model or its suitability for industrial deployment.
+The script evaluates the trained model using the annotated test images and reports performance metrics including precision, recall, mAP@50 and mAP@50–95.
+
+For meaningful comparison with the results presented in the project report, use the same Roboflow dataset version and evaluation settings.
+
+### Step 10 — Run object detection on another image (optional)
+
+To evaluate a different image, replace `test_image` with the path to another supported `.jpg`, `.jpeg` or `.png` file.
+
+For example:
+
+```python
+custom_image = "/content/example.jpg"
+
+!python -m src.predict \
+    --weights models/best.pt \
+    --image "{custom_image}"
+```
+
+The image must exist at the specified location. Users can upload their own images through the Colab Files sidebar.
+
+### Notes and limitations
+
+- The repository includes the trained model weights, so retraining is not required for inference or evaluation.
+- The Roboflow dataset must be downloaded separately.
+- The dataset must be exported in YOLOv8 format, using the same class definitions as the model.
+- Google Colab's temporary files may be deleted when the runtime disconnects. The repository and dataset may need to be downloaded again in a new session.
+- Model performance may vary depending on image quality, dataset characteristics and inference settings.
+- The model is intended for identifying the packaging defect classes represented in its training dataset. Its performance on unrelated packaging types or unseen operating conditions has not been established.
 
 ## HTML Documentation
 
