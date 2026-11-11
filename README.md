@@ -383,15 +383,6 @@ custom_image = "/content/example.jpg"
 
 The image must exist at the specified location. Users can upload their own images through the Colab Files sidebar.
 
-### Notes and limitations
-
-- The repository includes the trained model weights, so retraining is not required for inference or evaluation.
-- The Roboflow dataset must be downloaded separately.
-- The dataset must be exported in YOLOv8 format, using the same class definitions as the model.
-- Google Colab's temporary files may be deleted when the runtime disconnects. The repository and dataset may need to be downloaded again in a new session.
-- Model performance may vary depending on image quality, dataset characteristics and inference settings.
-- The model is intended for identifying the packaging defect classes represented in its training dataset. Its performance on unrelated packaging types or unseen operating conditions has not been established.
-
 ## HTML Documentation
 
 HTML source-code documentation can be generated using `pdoc`:
