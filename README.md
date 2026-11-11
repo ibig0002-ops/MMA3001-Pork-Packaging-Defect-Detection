@@ -112,6 +112,15 @@ These results are hardware- and benchmark-dependent and should not be interprete
 
 ```text
 MMA3001-Pork-Packaging-Defect-Detection/
+├── docs/
+│   └── src
+│        └── benchmark.html
+│        └── evaluate.html
+│        └── predict.html
+│        └── train.html
+│   └── index.html
+│   └── search.js
+│   └── src.html
 ├── notebooks/
 │   └── GITHUB (1).ipynb
 ├── models/
